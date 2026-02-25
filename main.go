@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"bosh-blob-experiment/manifest"
 	"compress/gzip"
 	"flag"
 	"fmt"
@@ -13,42 +14,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 )
-
-type Build struct {
-	Version     string
-	BlobstoreId string `yaml:"blobstore_id"`
-	Sha1        string
-}
-
-type PackageManifest struct {
-	Builds        map[string]Build
-	FormatVersion string
-}
-
-type Job struct {
-	Name        string
-	Version     string
-	Fingerprint string
-	Sha1        string
-	Packages    []string
-}
-
-type Package struct {
-	Name         string
-	Version      string
-	Fingerprint  string
-	Sha1         string
-	Dependencies []string
-}
-
-type ReleaseManifest struct {
-	Name              string
-	Version           string
-	CommitHash        string
-	UncommitedChanges bool
-	Jobs              []Job
-	Packages          []Package
-}
 
 func main() {
 	projectDir := flag.String("project", ".", "project directory")
@@ -75,7 +40,7 @@ func main() {
 			if err != nil {
 				return err
 			}
-			pkg := PackageManifest{}
+			pkg := manifest.PackageManifest{}
 			err = yaml.Unmarshal(b, &pkg)
 			if err != nil {
 				return err
@@ -136,7 +101,7 @@ func main() {
 			}
 
 			if "release.MF" == h.Name {
-				meta := ReleaseManifest{}
+				meta := manifest.ReleaseManifest{}
 				decoder := yaml.NewDecoder(tarFile)
 				err = decoder.Decode(&meta)
 				if err != nil {
