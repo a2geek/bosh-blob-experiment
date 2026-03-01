@@ -11,6 +11,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	tbl "github.com/rodaine/table"
 	cli "github.com/urfave/cli/v3"
@@ -73,6 +74,11 @@ func findProjectBlobs(projectDir string) (map[string]manifest.Build, error) {
 
 func generateReport(_ context.Context, cmd *cli.Command) error {
 	projectDir := cmd.String("project")
+	versionRegex := cmd.String("version")
+	if versionRegex == "" {
+		versionRegex = "*"
+	}
+
 	blobs, err := findProjectBlobs(projectDir)
 	if err != nil {
 		return err
@@ -89,6 +95,13 @@ func generateReport(_ context.Context, cmd *cli.Command) error {
 	count := 0
 	var versions []string
 	for _, release := range releases {
+		match, err := regexp.MatchString(versionRegex, release.Version)
+		if err != nil {
+			return err
+		}
+		if !match {
+			continue
+		}
 		count += len(release.Jobs)
 		count += len(release.Packages)
 		versions = append(versions, release.Version)
@@ -99,6 +112,13 @@ func generateReport(_ context.Context, cmd *cli.Command) error {
 
 	tbl := tbl.New("Version", "Type", "Name", "Blob Name", "Present?")
 	for _, release := range releases {
+		match, err := regexp.MatchString(versionRegex, release.Version)
+		if err != nil {
+			return err
+		}
+		if !match {
+			continue
+		}
 		version := release.Version // Note: Only showing on the first entry
 		for _, job := range release.Jobs {
 			blobId := "-"
@@ -165,6 +185,13 @@ func main() {
 				Usage:       "Report on blob status",
 				Description: "Generate a report of expected blobs for each final release version",
 				Action:      generateReport,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "version",
+						Aliases: []string{"v"},
+						Usage:   "version regex",
+					},
+				},
 			},
 		},
 	}
