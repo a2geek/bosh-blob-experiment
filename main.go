@@ -4,6 +4,7 @@ import (
 	"bosh-blob-experiment/blobstore"
 	"bosh-blob-experiment/manifest"
 	"context"
+	"fmt"
 	"io"
 	"io/fs"
 	"log"
@@ -84,6 +85,18 @@ func generateReport(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+
+	count := 0
+	var versions []string
+	for _, release := range releases {
+		count += len(release.Jobs)
+		count += len(release.Packages)
+		versions = append(versions, release.Version)
+	}
+	if count > 50 {
+		return fmt.Errorf("too many blobs to lookup; found %d but max is 50; versions found %v", count, versions)
+	}
+
 	tbl := tbl.New("Version", "Type", "Name", "Blob Name", "Present?")
 	for _, release := range releases {
 		version := release.Version // Note: Only showing on the first entry
