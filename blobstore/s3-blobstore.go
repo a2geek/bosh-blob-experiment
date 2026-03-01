@@ -13,7 +13,7 @@ import (
 func NewS3Blobstore(manifest finalBlobstore) (Blobstore, error) {
 	if manifest.Provider == "s3" {
 		if _, ok := manifest.Options["region"]; !ok {
-			manifest.Options["region"] = "us-east1"
+			manifest.Options["region"] = "us-east-1"
 		}
 	}
 
