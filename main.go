@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bosh-blob-experiment/blobstore"
 	"bosh-blob-experiment/manifest"
 	"context"
 	"io/fs"
@@ -77,27 +78,37 @@ func generateReport(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
+	blobstore, err := blobstore.New(projectDir)
+	if err != nil {
+		return err
+	}
 	tbl := tbl.New("Version", "Type", "Name", "Blob Name", "Present?")
 	for _, release := range releases {
 		version := release.Version // Note: Only showing on the first entry
 		for _, job := range release.Jobs {
 			blobId := "-"
-			present := "No"
+			present := false
 			blob, ok := blobs[job.Version]
 			if ok {
 				blobId = blob.BlobstoreId
-				present = "Yes"
+				present, err = blobstore.Exists(blobId)
+				if err != nil {
+					return err
+				}
 			}
 			tbl.AddRow(version, "Job", job.Name, blobId, present)
 			version = ""
 		}
 		for _, pkg := range release.Packages {
 			blobId := "-"
-			present := "No"
+			present := false
 			blob, ok := blobs[pkg.Version]
 			if ok {
 				blobId = blob.BlobstoreId
-				present = "Yes"
+				present, err = blobstore.Exists(blobId)
+				if err != nil {
+					return err
+				}
 			}
 			tbl.AddRow(version, "Package", pkg.Name, blobId, present)
 			version = ""
