@@ -4,7 +4,9 @@ import (
 	"bosh-blob-experiment/blobstore"
 	"bosh-blob-experiment/manifest"
 	"context"
+	"io"
 	"io/fs"
+	"log"
 	"maps"
 	"os"
 	"path/filepath"
@@ -119,6 +121,7 @@ func generateReport(_ context.Context, cmd *cli.Command) error {
 }
 
 func main() {
+	log.SetOutput(io.Discard)
 	cmd := &cli.Command{
 		Name:        "bbx",
 		Description: "bosh blob experiment",
@@ -130,6 +133,17 @@ func main() {
 				Sources:     cli.EnvVars("BBX_PROJECT"),
 				Local:       false,
 				DefaultText: ".",
+			},
+			&cli.BoolFlag{
+				Name:        "verbose",
+				Aliases:     []string{"v"},
+				Usage:       "enable logging",
+				Local:       true,
+				DefaultText: "false",
+				Action: func(_ context.Context, _ *cli.Command, _ bool) error {
+					log.SetOutput(os.Stderr)
+					return nil
+				},
 			},
 		},
 		Commands: []*cli.Command{
