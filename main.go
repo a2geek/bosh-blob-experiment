@@ -1,204 +1,14 @@
 package main
 
 import (
-	"bosh-blob-experiment/blobstore"
-	"bosh-blob-experiment/manifest"
+	"bosh-blob-experiment/cmd"
 	"context"
-	"fmt"
 	"io"
-	"io/fs"
 	"log"
-	"maps"
 	"os"
-	"path/filepath"
-	"regexp"
 
-	tbl "github.com/rodaine/table"
 	cli "github.com/urfave/cli/v3"
-	"gopkg.in/yaml.v3"
 )
-
-func findProjectReleaseManifests(projectDir string) ([]manifest.ReleaseManifest, error) {
-	var releases []manifest.ReleaseManifest
-	finalBuildsDir := filepath.Join(projectDir, "releases")
-	err := filepath.WalkDir(finalBuildsDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		if "index.yml" != d.Name() {
-			b, err := os.ReadFile(path)
-			if err != nil {
-				return err
-			}
-			rel := manifest.ReleaseManifest{}
-			err = yaml.Unmarshal(b, &rel)
-			if err != nil {
-				return err
-			}
-			releases = append(releases, rel)
-		}
-		return nil
-	})
-	return releases, err
-}
-
-func findProjectBlobs(projectDir string) (map[string]manifest.Build, error) {
-	blobMap := map[string]manifest.Build{}
-	finalBuildsDir := filepath.Join(projectDir, ".final_builds")
-	err := filepath.WalkDir(finalBuildsDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		if "index.yml" == d.Name() {
-			b, err := os.ReadFile(path)
-			if err != nil {
-				return err
-			}
-			pkg := manifest.PackageManifest{}
-			err = yaml.Unmarshal(b, &pkg)
-			if err != nil {
-				return err
-			}
-			maps.Copy(blobMap, pkg.Builds)
-		}
-		return nil
-	})
-	return blobMap, err
-}
-
-func generateReport(_ context.Context, cmd *cli.Command) error {
-	projectDir := cmd.String("project")
-	versionRegex := cmd.String("version")
-
-	blobs, err := findProjectBlobs(projectDir)
-	if err != nil {
-		return err
-	}
-	releases, err := findProjectReleaseManifests(projectDir)
-	if err != nil {
-		return err
-	}
-	blobstore, err := blobstore.NewFromConfig(projectDir)
-	if err != nil {
-		return err
-	}
-
-	count := 0
-	var versions []string
-	for _, release := range releases {
-		match, err := regexp.MatchString(versionRegex, release.Version)
-		if err != nil {
-			return err
-		}
-		if !match {
-			continue
-		}
-		count += len(release.Jobs)
-		count += len(release.Packages)
-		versions = append(versions, release.Version)
-	}
-	if count > 50 {
-		return fmt.Errorf("too many blobs to lookup; found %d but max is 50; versions found %v", count, versions)
-	}
-
-	tbl := tbl.New("Version", "Type", "Name", "Blob Name", "Present?")
-	for _, release := range releases {
-		match, err := regexp.MatchString(versionRegex, release.Version)
-		if err != nil {
-			return err
-		}
-		if !match {
-			continue
-		}
-		version := release.Version // Note: Only showing on the first entry
-		for _, job := range release.Jobs {
-			blobId := "-"
-			present := false
-			blob, ok := blobs[job.Version]
-			if ok {
-				blobId = blob.BlobstoreId
-				present, err = blobstore.Exists(blobId)
-				if err != nil {
-					return err
-				}
-			}
-			tbl.AddRow(version, "Job", job.Name, blobId, present)
-			version = ""
-		}
-		for _, pkg := range release.Packages {
-			blobId := "-"
-			present := false
-			blob, ok := blobs[pkg.Version]
-			if ok {
-				blobId = blob.BlobstoreId
-				present, err = blobstore.Exists(blobId)
-				if err != nil {
-					return err
-				}
-			}
-			tbl.AddRow(version, "Package", pkg.Name, blobId, present)
-			version = ""
-		}
-	}
-	tbl.Print()
-	return nil
-}
-
-func makeLocal(_ context.Context, cmd *cli.Command) error {
-	projectDir := cmd.String("project")
-
-	newBlobstore, err := blobstore.NewFromBlobstore(blobstore.FinalBlobstore{
-		Provider: "local",
-		Options: map[string]interface{}{
-			"blobstore_path": "final_blobs",
-		},
-	})
-	if err != nil {
-		return err
-	}
-
-	if cmd.Bool("copy") {
-		// Get existing configuration
-		oldBlobstore, err := blobstore.NewFromConfig(projectDir)
-		if err != nil {
-			return err
-		}
-
-		blobs, err := oldBlobstore.List()
-		if err != nil {
-			return err
-		}
-		for _, blob := range blobs {
-			tmp, err := os.CreateTemp("", "blob-")
-			if err != nil {
-				return err
-			}
-			defer func() {
-				tmp.Close()
-				os.Remove(tmp.Name())
-			}()
-
-			err = oldBlobstore.Get(blob, tmp)
-			if err != nil {
-				return err
-			}
-
-			err = newBlobstore.Put(tmp, blob)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	// TODO save blobstore config!
-	return nil
-}
 
 func main() {
 	log.SetOutput(io.Discard)
@@ -230,7 +40,7 @@ func main() {
 				Name:        "report",
 				Usage:       "Report on blob status",
 				Description: "Generate a report of expected blobs for each final release version",
-				Action:      generateReport,
+				Action:      cmd.GenerateReport,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "version",
@@ -245,7 +55,7 @@ func main() {
 				Aliases:     []string{"make-local"},
 				Usage:       "Make this blobstore local",
 				Description: "Convert this blobstore to be a local blobstore and download all blobs",
-				Action:      makeLocal,
+				Action:      cmd.MakeLocal,
 				Flags: []cli.Flag{
 					&cli.BoolFlag{
 						Name:        "copy",
