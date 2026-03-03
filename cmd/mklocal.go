@@ -3,7 +3,10 @@ package cmd
 import (
 	"bosh-blob-experiment/blobstore"
 	"context"
+	"errors"
+	"log"
 	"os"
+	"path/filepath"
 
 	cli "github.com/urfave/cli/v3"
 )
@@ -11,17 +14,30 @@ import (
 func MakeLocal(_ context.Context, cmd *cli.Command) error {
 	projectDir := cmd.String("project")
 
-	newBlobstore, err := blobstore.NewFromBlobstore(blobstore.FinalBlobstore{
+	newBlobstoreConfig := blobstore.FinalBlobstore{
 		Provider: "local",
 		Options: map[string]interface{}{
 			"blobstore_path": "final_blobs",
 		},
-	})
+	}
+	newBlobstore, err := blobstore.NewFromBlobstore(projectDir, newBlobstoreConfig)
 	if err != nil {
 		return err
 	}
 
 	if cmd.Bool("copy") {
+		// Make certain the blob directory exists
+		blobDir := filepath.Join(projectDir, newBlobstoreConfig.Options["blobstore_path"].(string))
+		_, err = os.Stat(blobDir)
+		if errors.Is(err, os.ErrNotExist) {
+			err = os.Mkdir(blobDir, os.ModePerm)
+			if err != nil {
+				return err
+			}
+		} else if err != nil {
+			return err
+		}
+
 		// Get existing configuration
 		oldBlobstore, err := blobstore.NewFromConfig(projectDir)
 		if err != nil {
@@ -33,6 +49,8 @@ func MakeLocal(_ context.Context, cmd *cli.Command) error {
 			return err
 		}
 		for _, blob := range blobs {
+			log.Printf("copying blob '%s'", blob)
+
 			tmp, err := os.CreateTemp("", "blob-")
 			if err != nil {
 				return err

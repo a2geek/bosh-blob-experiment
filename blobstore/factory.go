@@ -14,7 +14,7 @@ import (
 type Blobstore interface {
 	Get(src string, dest io.WriterAt) error
 	Put(src io.ReadSeeker, dest string) error
-	Exists(Name string) (bool, error)
+	Exists(name string) (bool, error)
 	List() ([]string, error)
 }
 
@@ -46,13 +46,16 @@ func NewFromConfig(projectDir string) (Blobstore, error) {
 		}
 		maps.Copy(manifest.Blobstore.Options, privateManifest.Blobstore.Options)
 	}
-	return NewFromBlobstore(manifest.Blobstore)
+	return NewFromBlobstore(projectDir, manifest.Blobstore)
 }
 
-func NewFromBlobstore(config FinalBlobstore) (Blobstore, error) {
+func NewFromBlobstore(projectDir string, config FinalBlobstore) (Blobstore, error) {
 	switch config.Provider {
 	case "s3", "gcs":
 		return NewS3Blobstore(config)
+	case "local":
+		blobstoreDir := filepath.Join(projectDir, config.Options["blobstore_path"].(string))
+		return NewLocalBlobstore(blobstoreDir), nil
 	default:
 		return nil, fmt.Errorf("blobstore of type '%s' not supported", config.Provider)
 	}

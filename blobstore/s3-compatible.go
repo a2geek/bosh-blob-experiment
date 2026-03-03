@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/cloudfoundry/bosh-s3cli/client"
@@ -34,6 +35,7 @@ func NewS3Blobstore(manifest FinalBlobstore) (Blobstore, error) {
 	}
 
 	blobstore := s3Blobstore{
+		s3Config:           s3Config,
 		s3Client:           s3Client,
 		s3CompatibleClient: client.New(s3Client, &s3Config),
 	}
@@ -65,6 +67,7 @@ func (c *s3Blobstore) List() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("list objects for bucket '%s' returned %d objects", c.s3Config.BucketName, len(output.Contents))
 
 	var list []string
 	for _, object := range output.Contents {
