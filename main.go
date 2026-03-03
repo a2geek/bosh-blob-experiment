@@ -75,9 +75,6 @@ func findProjectBlobs(projectDir string) (map[string]manifest.Build, error) {
 func generateReport(_ context.Context, cmd *cli.Command) error {
 	projectDir := cmd.String("project")
 	versionRegex := cmd.String("version")
-	if versionRegex == "" {
-		versionRegex = "*"
-	}
 
 	blobs, err := findProjectBlobs(projectDir)
 	if err != nil {
@@ -87,7 +84,7 @@ func generateReport(_ context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	blobstore, err := blobstore.New(projectDir)
+	blobstore, err := blobstore.NewFromConfig(projectDir)
 	if err != nil {
 		return err
 	}
@@ -153,6 +150,56 @@ func generateReport(_ context.Context, cmd *cli.Command) error {
 	return nil
 }
 
+func makeLocal(_ context.Context, cmd *cli.Command) error {
+	projectDir := cmd.String("project")
+
+	newBlobstore, err := blobstore.NewFromBlobstore(blobstore.FinalBlobstore{
+		Provider: "local",
+		Options: map[string]interface{}{
+			"blobstore_path": "final_blobs",
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	if cmd.Bool("copy") {
+		// Get existing configuration
+		oldBlobstore, err := blobstore.NewFromConfig(projectDir)
+		if err != nil {
+			return err
+		}
+
+		blobs, err := oldBlobstore.List()
+		if err != nil {
+			return err
+		}
+		for _, blob := range blobs {
+			tmp, err := os.CreateTemp("", "blob-")
+			if err != nil {
+				return err
+			}
+			defer func() {
+				tmp.Close()
+				os.Remove(tmp.Name())
+			}()
+
+			err = oldBlobstore.Get(blob, tmp)
+			if err != nil {
+				return err
+			}
+
+			err = newBlobstore.Put(tmp, blob)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// TODO save blobstore config!
+	return nil
+}
+
 func main() {
 	log.SetOutput(io.Discard)
 	cmd := &cli.Command{
@@ -164,7 +211,6 @@ func main() {
 				Aliases:     []string{"p"},
 				Usage:       "project directory",
 				Sources:     cli.EnvVars("BBX_PROJECT"),
-				Local:       false,
 				DefaultText: ".",
 			},
 			&cli.BoolFlag{
@@ -187,9 +233,25 @@ func main() {
 				Action:      generateReport,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:    "version",
-						Aliases: []string{"v"},
-						Usage:   "version regex",
+						Name:        "version",
+						Aliases:     []string{"v"},
+						Usage:       "version regex",
+						DefaultText: ".*",
+					},
+				},
+			},
+			{
+				Name:        "mklocal",
+				Aliases:     []string{"make-local"},
+				Usage:       "Make this blobstore local",
+				Description: "Convert this blobstore to be a local blobstore and download all blobs",
+				Action:      makeLocal,
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:        "copy",
+						Aliases:     []string{"c"},
+						Usage:       "copy blobs from existing blobstore",
+						DefaultText: "false",
 					},
 				},
 			},

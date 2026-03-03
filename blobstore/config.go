@@ -1,11 +1,11 @@
 package blobstore
 
-type finalBlobstore struct {
+type FinalBlobstore struct {
 	Provider string
 	Options  map[string]interface{}
 }
 
-type finalManifest struct {
-	Blobstore finalBlobstore
+type FinalManifest struct {
+	Blobstore FinalBlobstore
 	FinalName string `yaml:"final_name"`
 }

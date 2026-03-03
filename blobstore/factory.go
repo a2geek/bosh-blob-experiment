@@ -3,6 +3,7 @@ package blobstore
 import (
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"os"
 	"path/filepath"
@@ -11,17 +12,20 @@ import (
 )
 
 type Blobstore interface {
+	Get(src string, dest io.WriterAt) error
+	Put(src io.ReadSeeker, dest string) error
 	Exists(Name string) (bool, error)
+	List() ([]string, error)
 }
 
-func New(projectDir string) (Blobstore, error) {
+func NewFromConfig(projectDir string) (Blobstore, error) {
 	finalYaml := filepath.Join(projectDir, "config", "final.yml")
 
 	b, err := os.ReadFile(finalYaml)
 	if err != nil {
 		return nil, err
 	}
-	manifest := finalManifest{}
+	manifest := FinalManifest{}
 	err = yaml.Unmarshal(b, &manifest)
 	if err != nil {
 		return nil, err
@@ -35,18 +39,21 @@ func New(projectDir string) (Blobstore, error) {
 		}
 	} else {
 		// The 'private.yml' file appears to be mostly identical to the main manifest, so merge the options section
-		privateManifest := finalManifest{}
+		privateManifest := FinalManifest{}
 		err = yaml.Unmarshal(b, &privateManifest)
 		if err != nil {
 			return nil, err
 		}
 		maps.Copy(manifest.Blobstore.Options, privateManifest.Blobstore.Options)
 	}
+	return NewFromBlobstore(manifest.Blobstore)
+}
 
-	switch manifest.Blobstore.Provider {
+func NewFromBlobstore(config FinalBlobstore) (Blobstore, error) {
+	switch config.Provider {
 	case "s3", "gcs":
-		return NewS3Blobstore(manifest.Blobstore)
+		return NewS3Blobstore(config)
 	default:
-		return nil, fmt.Errorf("blobstore of type '%s' not supported", manifest.Blobstore.Provider)
+		return nil, fmt.Errorf("blobstore of type '%s' not supported", config.Provider)
 	}
 }
