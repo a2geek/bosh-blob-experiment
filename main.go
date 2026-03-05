@@ -48,6 +48,11 @@ func main() {
 						Usage:       "version regex",
 						DefaultText: ".*",
 					},
+					&cli.BoolFlag{
+						Name:    "verify",
+						Aliases: []string{"V"},
+						Usage:   "Verify the SHA against the file. WARNING: This may take a bit when blobstore is remote.",
+					},
 				},
 			},
 			{

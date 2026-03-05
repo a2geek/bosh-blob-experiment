@@ -2,7 +2,7 @@ package blobstore
 
 type FinalBlobstore struct {
 	Provider string
-	Options  map[string]interface{}
+	Options  map[string]any
 }
 
 type FinalManifest struct {

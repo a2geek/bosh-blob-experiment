@@ -17,7 +17,7 @@ func MakeLocal(_ context.Context, cmd *cli.Command) error {
 
 	newBlobstoreConfig := blobstore.FinalBlobstore{
 		Provider: "local",
-		Options: map[string]interface{}{
+		Options: map[string]any{
 			"blobstore_path": "final_blobs",
 		},
 	}
