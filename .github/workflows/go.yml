@@ -12,10 +12,6 @@ on:
   pull_request:
     branches: [ "main" ]
 
-defaults:
-  run:
-    working-directory: src
-
 jobs:
 
   build:
