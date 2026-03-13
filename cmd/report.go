@@ -3,14 +3,12 @@ package cmd
 import (
 	"bosh-blob-experiment/blobstore"
 	"bosh-blob-experiment/manifest"
-	"bosh-blob-experiment/util"
 	"context"
 	"crypto/sha1"
 	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
-	"regexp"
 	"strings"
 
 	tbl "github.com/rodaine/table"
@@ -22,15 +20,17 @@ func GenerateReport(_ context.Context, cmd *cli.Command) error {
 	versionRegex := cmd.String("version")
 	verifyFlag := cmd.Bool("verify")
 
-	blobs, err := util.FindProjectBlobs(projectDir)
+	model, err := manifest.Load(projectDir)
 	if err != nil {
-		return err
+		return nil
 	}
-	releases, err := util.FindProjectReleaseManifests(projectDir)
-	if err != nil {
-		return err
-	}
+
 	blobstore, err := blobstore.NewFromConfig(projectDir)
+	if err != nil {
+		return err
+	}
+
+	releases, err := model.FindReleases(versionRegex)
 	if err != nil {
 		return err
 	}
@@ -38,13 +38,6 @@ func GenerateReport(_ context.Context, cmd *cli.Command) error {
 	count := 0
 	var versions []string
 	for _, release := range releases {
-		match, err := regexp.MatchString(versionRegex, release.Version)
-		if err != nil {
-			return err
-		}
-		if !match {
-			continue
-		}
 		count += len(release.Jobs)
 		count += len(release.Packages)
 		versions = append(versions, release.Version)
@@ -53,28 +46,33 @@ func GenerateReport(_ context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("too many blobs to lookup; found %d but max is 50; versions found %v", count, versions)
 	}
 
+	blobs := model.FindAllBlobs()
+
 	headers := []any{"Version", "Type", "Name", "Blob Name", "Present?"}
 	if verifyFlag {
 		headers = append(headers, "SHA?")
 	}
 	tbl := tbl.New(headers...)
 	for _, release := range releases {
-		match, err := regexp.MatchString(versionRegex, release.Version)
-		if err != nil {
-			return err
-		}
-		if !match {
-			continue
-		}
 		version := release.Version // Note: Only showing on the first entry
 		for _, job := range release.Jobs {
 			addRow(tbl, blobstore, blobs, job.Version, "Job", version, job.Name, verifyFlag, job.Sha1)
 			version = ""
 		}
 		for _, pkg := range release.Packages {
-			addRow(tbl, blobstore, blobs, pkg.Version, "Job", version, pkg.Name, verifyFlag, pkg.Sha1)
+			addRow(tbl, blobstore, blobs, pkg.Version, "Package", version, pkg.Name, verifyFlag, pkg.Sha1)
 			version = ""
 		}
+	}
+	for name, blob := range model.ConfigBlobs() {
+		fakeBlobMap := map[string]manifest.Build{
+			name: {
+				Version:     name,
+				BlobstoreId: blob.ObjectId,
+				Sha1:        blob.Sha,
+			},
+		}
+		addRow(tbl, blobstore, fakeBlobMap, name, "Blob", "-", name, verifyFlag, blob.Sha)
 	}
 	tbl.Print()
 	return nil
