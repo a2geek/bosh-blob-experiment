@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"maps"
 	"os"
 	"path/filepath"
@@ -50,6 +51,7 @@ func NewFromConfig(projectDir string) (Blobstore, error) {
 }
 
 func NewFromBlobstore(projectDir string, config FinalBlobstore) (Blobstore, error) {
+	log.Printf("blobstore type '%s' found", config.Provider)
 	switch config.Provider {
 	case "s3", "gcs":
 		return NewS3Blobstore(config)

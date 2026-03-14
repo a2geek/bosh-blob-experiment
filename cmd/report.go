@@ -19,6 +19,7 @@ func GenerateReport(_ context.Context, cmd *cli.Command) error {
 	projectDir := cmd.String("project")
 	versionRegex := cmd.String("version")
 	verifyFlag := cmd.Bool("verify")
+	allFlag := cmd.Bool("all")
 
 	model, err := manifest.Load(projectDir)
 	if err != nil {
@@ -35,6 +36,14 @@ func GenerateReport(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
+	var blobList []string
+	if allFlag {
+		blobList, err = blobstore.List()
+		if err != nil {
+			return err
+		}
+	}
+
 	count := 0
 	var versions []string
 	for _, release := range releases {
@@ -48,7 +57,7 @@ func GenerateReport(_ context.Context, cmd *cli.Command) error {
 
 	blobs := model.FindAllBlobs()
 
-	headers := []any{"Version", "Type", "Name", "Blob Name", "Present?"}
+	headers := []any{"Version", "Name", "Blob Name", "Present?"}
 	if verifyFlag {
 		headers = append(headers, "SHA?")
 	}
@@ -56,11 +65,19 @@ func GenerateReport(_ context.Context, cmd *cli.Command) error {
 	for _, release := range releases {
 		version := release.Version // Note: Only showing on the first entry
 		for _, job := range release.Jobs {
-			addRow(tbl, blobstore, blobs, job.Version, "Job", version, job.Name, verifyFlag, job.Sha1)
+			blobId, err := addRow(tbl, blobstore, blobs, job.Version, version, fmt.Sprintf("job/%s", job.Name), verifyFlag, job.Sha1)
+			if err != nil {
+				return err
+			}
+			blobList = removeFromList(blobList, blobId)
 			version = ""
 		}
 		for _, pkg := range release.Packages {
-			addRow(tbl, blobstore, blobs, pkg.Version, "Package", version, pkg.Name, verifyFlag, pkg.Sha1)
+			blobId, err := addRow(tbl, blobstore, blobs, pkg.Version, version, fmt.Sprintf("package/%s", pkg.Name), verifyFlag, pkg.Sha1)
+			if err != nil {
+				return err
+			}
+			blobList = removeFromList(blobList, blobId)
 			version = ""
 		}
 	}
@@ -72,13 +89,27 @@ func GenerateReport(_ context.Context, cmd *cli.Command) error {
 				Sha1:        blob.Sha,
 			},
 		}
-		addRow(tbl, blobstore, fakeBlobMap, name, "Blob", "-", name, verifyFlag, blob.Sha)
+		blobId, err := addRow(tbl, blobstore, fakeBlobMap, name, "-", name, verifyFlag, blob.Sha)
+		if err != nil {
+			return err
+		}
+		blobList = removeFromList(blobList, blobId)
+	}
+	for _, blobId := range blobList {
+		fakeBlobMap := map[string]manifest.Build{
+			blobId: {
+				Version:     blobId,
+				BlobstoreId: blobId,
+				Sha1:        "",
+			},
+		}
+		addRow(tbl, blobstore, fakeBlobMap, blobId, "-", "<unknown>", verifyFlag, "")
 	}
 	tbl.Print()
 	return nil
 }
 
-func addRow(tbl tbl.Table, blobstore blobstore.Blobstore, blobs map[string]manifest.Build, blobVersion, label, version, name string, verifyFlag bool, expectedSha string) error {
+func addRow(tbl tbl.Table, blobstore blobstore.Blobstore, blobs map[string]manifest.Build, blobVersion, version, name string, verifyFlag bool, expectedSha string) (string, error) {
 	blobId := "-"
 	present := false
 	blob, ok := blobs[blobVersion]
@@ -87,17 +118,19 @@ func addRow(tbl tbl.Table, blobstore blobstore.Blobstore, blobs map[string]manif
 		blobId = blob.BlobstoreId
 		present, err = blobstore.Exists(blobId)
 		if err != nil {
-			return err
+			return "", err
 		}
 	}
-	row := []any{version, label, name, blobId, present}
+	row := []any{version, name, blobId, present}
 	if verifyFlag {
 		if !present {
 			row = append(row, "does NOT match")
+		} else if expectedSha == "" {
+			row = append(row, "<unknown>")
 		} else {
 			tmp, err := os.CreateTemp("", "blob-")
 			if err != nil {
-				return err
+				return "", err
 			}
 			defer func() {
 				tmp.Close()
@@ -106,7 +139,7 @@ func addRow(tbl tbl.Table, blobstore blobstore.Blobstore, blobs map[string]manif
 
 			err = blobstore.Get(blobId, tmp)
 			if err != nil {
-				return err
+				return "", err
 			}
 
 			sha := sha1.New()
@@ -118,7 +151,7 @@ func addRow(tbl tbl.Table, blobstore blobstore.Blobstore, blobs map[string]manif
 
 			_, err = io.Copy(sha, tmp)
 			if err != nil {
-				return err
+				return "", err
 			}
 
 			result := sha.Sum(nil)
@@ -131,5 +164,15 @@ func addRow(tbl tbl.Table, blobstore blobstore.Blobstore, blobs map[string]manif
 		}
 	}
 	tbl.AddRow(row...)
-	return nil
+	return blobId, nil
+}
+
+func removeFromList(slice []string, target string) []string {
+	newSlice := []string{}
+	for _, str := range slice {
+		if str != target {
+			newSlice = append(newSlice, str)
+		}
+	}
+	return newSlice
 }

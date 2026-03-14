@@ -53,6 +53,11 @@ func main() {
 						Aliases: []string{"V"},
 						Usage:   "Verify the SHA against the file. WARNING: This may take a bit when blobstore is remote.",
 					},
+					&cli.BoolFlag{
+						Name:    "all",
+						Aliases: []string{"a"},
+						Usage:   "Include all blobs found in the blobstore.",
+					},
 				},
 			},
 			{
