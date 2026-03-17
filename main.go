@@ -15,8 +15,8 @@ func main() {
 	debugFlag := false
 	log.SetOutput(io.Discard)
 	cmd := &cli.Command{
-		Name:        "bbx",
-		Description: "bosh blob experiment",
+		Name:  "bbx",
+		Usage: "bosh blob experiment",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "project",
