@@ -1,4 +1,4 @@
-# BOSH bloshstore experiment
+# BOSH blobstore experiment
 
 The thought experiment: What happens if your blobstore gets whacked, or somehow hosed, or you don't have access, etc?
 Can it be rebuilt?
@@ -26,7 +26,7 @@ GLOBAL OPTIONS:
 
 ## Blobs report
 
-List, and optionally check SHA checksum, every blob.
+List every blob and optionally verify the SHA checksum.
 
 ```bash
 $ bbx report --help
