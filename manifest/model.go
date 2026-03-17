@@ -27,12 +27,23 @@ func (m *Model) FindReleases(pattern string) ([]ReleaseManifest, error) {
 	return matches, nil
 }
 
-func (m *Model) FindAllBlobs() map[string]Build {
+func (m *Model) FindAllBuilds() map[string]Build {
 	blobs := map[string]Build{}
 	for _, pkg := range m.packageManifests {
 		maps.Copy(blobs, pkg.Builds)
 	}
 	return blobs
+}
+
+func (m *Model) FindBuildByVersion(version string) *Build {
+	for _, pkg := range m.packageManifests {
+		for _, build := range pkg.Builds {
+			if build.Version == version {
+				return &build
+			}
+		}
+	}
+	return nil
 }
 
 func (m *Model) ConfigBlobs() map[string]Blob {

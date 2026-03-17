@@ -55,7 +55,7 @@ func GenerateReport(_ context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("too many blobs to lookup; found %d but max is 50; versions found %v", count, versions)
 	}
 
-	blobs := model.FindAllBlobs()
+	blobs := model.FindAllBuilds()
 
 	headers := []any{"Version", "Name", "Blob Name", "Present?"}
 	if verifyFlag {

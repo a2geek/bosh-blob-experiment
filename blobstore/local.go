@@ -3,6 +3,7 @@ package blobstore
 import (
 	"errors"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -28,7 +29,13 @@ func (l *localBlobstore) Exists(name string) (bool, error) {
 }
 
 func (l *localBlobstore) Get(src string, dest io.WriterAt) error {
-	panic("unimplemented")
+	file, err := os.OpenFile(filepath.Join(l.blobstoreDir, src), os.O_RDONLY, os.ModePerm)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	_, err = io.Copy(io.NewOffsetWriter(dest, 0), file)
+	return err
 }
 
 func (l *localBlobstore) List() ([]string, error) {
@@ -41,6 +48,10 @@ func (l *localBlobstore) Put(src io.ReadSeeker, dest string) error {
 		return err
 	}
 	defer file.Close()
-	_, err = io.Copy(file, src)
-	return err
+	n, err := io.Copy(file, src)
+	if err != nil {
+		return err
+	}
+	log.Printf("copied %d bytes into '%s'", n, dest)
+	return nil
 }
