@@ -26,7 +26,7 @@ func GenerateReport(_ context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	blobstore, err := blobstore.NewFromConfig(projectDir)
+	blobstore, _, err := blobstore.NewFromConfig(projectDir)
 	if err != nil {
 		return err
 	}

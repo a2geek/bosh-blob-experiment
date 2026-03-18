@@ -19,46 +19,47 @@ type Blobstore interface {
 	List() ([]string, error)
 }
 
-func NewFromConfig(projectDir string) (Blobstore, error) {
+func NewFromConfig(projectDir string) (Blobstore, *FinalManifest, error) {
 	finalYaml := filepath.Join(projectDir, "config", "final.yml")
 
 	b, err := os.ReadFile(finalYaml)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	manifest := FinalManifest{}
+	manifest := &FinalManifest{}
 	err = yaml.Unmarshal(b, &manifest)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	privateYaml := filepath.Join(projectDir, "config", "private.yml")
 	b, err = os.ReadFile(privateYaml)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			return nil, err
+			return nil, nil, err
 		}
 	} else {
 		// The 'private.yml' file appears to be mostly identical to the main manifest, so merge the options section
 		privateManifest := FinalManifest{}
 		err = yaml.Unmarshal(b, &privateManifest)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		maps.Copy(manifest.Blobstore.Options, privateManifest.Blobstore.Options)
 	}
-	return NewFromBlobstore(projectDir, manifest.Blobstore)
+	blobstore, err := NewFromManifest(projectDir, manifest)
+	return blobstore, manifest, err
 }
 
-func NewFromBlobstore(projectDir string, config FinalBlobstore) (Blobstore, error) {
-	log.Printf("blobstore type '%s' found", config.Provider)
-	switch config.Provider {
+func NewFromManifest(projectDir string, config *FinalManifest) (Blobstore, error) {
+	log.Printf("blobstore type '%s' found", config.Blobstore.Provider)
+	switch config.Blobstore.Provider {
 	case "s3", "gcs":
-		return NewS3Blobstore(config)
+		return NewS3Blobstore(config.Blobstore)
 	case "local":
-		blobstoreDir := filepath.Join(projectDir, config.Options["blobstore_path"].(string))
+		blobstoreDir := filepath.Join(projectDir, config.Blobstore.Options["blobstore_path"].(string))
 		return NewLocalBlobstore(blobstoreDir), nil
 	default:
-		return nil, fmt.Errorf("blobstore of type '%s' not supported", config.Provider)
+		return nil, fmt.Errorf("blobstore of type '%s' not supported", config.Blobstore.Provider)
 	}
 }

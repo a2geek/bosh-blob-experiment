@@ -80,6 +80,12 @@ func main() {
 				Description: "Convert this blobstore to be a local blobstore and download all blobs",
 				Action:      cmd.MakeLocal,
 				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "directory",
+						Aliases: []string{"d"},
+						Usage:   "subdirectory for blob storage",
+						Value:   "final_blobs",
+					},
 					&cli.BoolFlag{
 						Name:        "copy",
 						Aliases:     []string{"c"},

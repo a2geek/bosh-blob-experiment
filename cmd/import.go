@@ -75,7 +75,7 @@ func ImportRelease(_ context.Context, cmd *cli.Command) error {
 			return err
 		}
 
-		blobstore, err := blobstore.NewFromConfig(projectDir)
+		blobstore, _, err := blobstore.NewFromConfig(projectDir)
 		if err != nil {
 			return err
 		}

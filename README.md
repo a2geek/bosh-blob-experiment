@@ -65,8 +65,9 @@ DESCRIPTION:
    Convert this blobstore to be a local blobstore and download all blobs
 
 OPTIONS:
-   --copy, -c  copy blobs from existing blobstore (default: false)
-   --help, -h  show help
+   --directory string, -d string  subdirectory for blob storage (default: "final_blobs")
+   --copy, -c                     copy blobs from existing blobstore (default: false)
+   --help, -h                     show help
 
 GLOBAL OPTIONS:
    --project string, -p string  project directory (default: .) [$BBX_PROJECT]

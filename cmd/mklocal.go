@@ -14,37 +14,52 @@ import (
 
 func MakeLocal(_ context.Context, cmd *cli.Command) error {
 	projectDir := cmd.String("project")
+	blobstorePath := cmd.String("directory")
 
-	newBlobstoreConfig := blobstore.FinalBlobstore{
-		Provider: "local",
-		Options: map[string]any{
-			"blobstore_path": "final_blobs",
+	if projectDir == "" {
+		return errors.New("project directory must be set")
+	} else if blobstorePath == "" {
+		return errors.New("blobstore subdirectory must be set")
+	}
+
+	// Get existing configuration
+	oldBlobstore, oldBlobstoreConfig, err := blobstore.NewFromConfig(projectDir)
+	if err != nil {
+		return err
+	}
+	if oldBlobstoreConfig.Blobstore.Provider == "local" {
+		return errors.New("blobstore is already configured as a local blobstore")
+	}
+
+	// Create the new configuration
+	newBlobstoreConfig := &blobstore.FinalManifest{
+		FinalName: oldBlobstoreConfig.FinalName,
+		Blobstore: blobstore.FinalBlobstore{
+			Provider: "local",
+			Options: map[string]any{
+				"blobstore_path": blobstorePath,
+			},
 		},
 	}
-	newBlobstore, err := blobstore.NewFromBlobstore(projectDir, newBlobstoreConfig)
+	newBlobstore, err := blobstore.NewFromManifest(projectDir, newBlobstoreConfig)
 	if err != nil {
 		return err
 	}
 
-	if cmd.Bool("copy") {
-		// Make certain the blob directory exists
-		blobDir := filepath.Join(projectDir, newBlobstoreConfig.Options["blobstore_path"].(string))
-		_, err = os.Stat(blobDir)
-		if errors.Is(err, os.ErrNotExist) {
-			err = os.Mkdir(blobDir, os.ModePerm)
-			if err != nil {
-				return err
-			}
-		} else if err != nil {
-			return err
-		}
-
-		// Get existing configuration
-		oldBlobstore, err := blobstore.NewFromConfig(projectDir)
+	// Make certain the blob directory exists
+	blobDir := filepath.Join(projectDir, blobstorePath)
+	_, err = os.Stat(blobDir)
+	if errors.Is(err, os.ErrNotExist) {
+		log.Printf("creating project subdirectory '%s' for blobs", blobstorePath)
+		err = os.Mkdir(blobDir, os.ModePerm)
 		if err != nil {
 			return err
 		}
+	} else if err != nil {
+		return err
+	}
 
+	if cmd.Bool("copy") {
 		blobs, err := oldBlobstore.List()
 		if err != nil {
 			return err
