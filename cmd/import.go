@@ -35,8 +35,8 @@ func ImportRelease(_ context.Context, cmd *cli.Command) error {
 		}()
 
 		var reader io.Reader
-		_, err = url.Parse(arg)
-		if err == nil {
+		u, err := url.Parse(arg)
+		if err == nil && u.Scheme != "" {
 			log.Printf("downloading '%s'...", arg)
 			resp, err := http.Get(arg)
 			if err != nil {
