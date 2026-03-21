@@ -61,6 +61,12 @@ func main() {
 						Usage:       "version regex",
 						DefaultText: ".*",
 					},
+					&cli.IntFlag{
+						Name:    "max-blobs",
+						Aliases: []string{"m"},
+						Usage:   "maximum number of blobs to allow for lookup",
+						Value:   50,
+					},
 					&cli.BoolFlag{
 						Name:    "verify",
 						Aliases: []string{"V"},

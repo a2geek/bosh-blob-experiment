@@ -20,6 +20,7 @@ func GenerateReport(_ context.Context, cmd *cli.Command) error {
 	versionRegex := cmd.String("version")
 	verifyFlag := cmd.Bool("verify")
 	allFlag := cmd.Bool("all")
+	maxBlobs := cmd.Int("max-blobs")
 
 	model, err := manifest.Load(projectDir)
 	if err != nil {
@@ -51,8 +52,8 @@ func GenerateReport(_ context.Context, cmd *cli.Command) error {
 		count += len(release.Packages)
 		versions = append(versions, release.Version)
 	}
-	if count > 50 {
-		return fmt.Errorf("too many blobs to lookup; found %d but max is 50; versions found %v", count, versions)
+	if count > maxBlobs {
+		return fmt.Errorf("too many blobs to lookup; found %d but max is %d; versions found %v", count, maxBlobs, versions)
 	}
 
 	blobs := model.FindAllBuilds()
