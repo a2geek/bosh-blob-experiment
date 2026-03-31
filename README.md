@@ -15,6 +15,7 @@ COMMANDS:
    report, blobs-report           Report on blob status
    mklocal, make-blobstore-local  Make this blobstore local
    import, import-release-blobs   Import blobs from a release
+   copy, copy-blobs               Copy blobs into an existing blobstore
    help, h                        Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
@@ -41,12 +42,14 @@ DESCRIPTION:
 
 OPTIONS:
    --version string, -v string  version regex (default: .*)
+   --max-blobs int, -m int      maximum number of blobs to allow for lookup (default: 50)
    --verify, -V                 Verify the SHA against the file. WARNING: This may take a bit when blobstore is remote.
    --all, -a                    Include all blobs found in the blobstore.
    --help, -h                   show help
 
 GLOBAL OPTIONS:
    --project string, -p string  project directory (default: .) [$BBX_PROJECT]
+   --verbose, -v                enable logging (default: false)
 ```
 
 ## Make blobstore local
@@ -71,6 +74,7 @@ OPTIONS:
 
 GLOBAL OPTIONS:
    --project string, -p string  project directory (default: .) [$BBX_PROJECT]
+   --verbose, -v                enable logging (default: false)
 ```
 
 ## Import blobs
@@ -93,6 +97,33 @@ OPTIONS:
 
 GLOBAL OPTIONS:
    --project string, -p string  project directory (default: .) [$BBX_PROJECT]
+   --verbose, -v                enable logging (default: false)
+```
+
+## Copy blobs
+
+Copy blobs from the original blobstore into the current blobstore.
+
+```bash
+$ bbx copy --help
+NAME:
+   bbx copy - Copy blobs into an existing blobstore
+
+USAGE:
+   bbx copy [options]
+
+DESCRIPTION:
+   Copy blobs from an old blobstore into the current blobstore
+
+OPTIONS:
+   --final string    source 'final.yml' file (default: <projectDir>/config/final.old)
+   --private string  source 'private.yml' file (default: <projectDir>/config/private.old)
+   --force, -f       over-write any existing blobs
+   --help, -h        show help
+
+GLOBAL OPTIONS:
+   --project string, -p string  project directory (default: .) [$BBX_PROJECT]
+   --verbose, -v                enable logging (default: false)
 ```
 
 # References
