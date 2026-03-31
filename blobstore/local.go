@@ -39,7 +39,18 @@ func (l *localBlobstore) Get(src string, dest io.WriterAt) error {
 }
 
 func (l *localBlobstore) List() ([]string, error) {
-	panic("unimplemented")
+	entries, err := os.ReadDir(l.blobstoreDir)
+	if err != nil {
+		return nil, err
+	}
+
+	var list []string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			list = append(list, entry.Name())
+		}
+	}
+	return list, nil
 }
 
 func (l *localBlobstore) Put(src io.ReadSeeker, dest string) error {
