@@ -29,7 +29,6 @@ func main() {
 				Name:        "verbose",
 				Aliases:     []string{"v"},
 				Usage:       "enable logging",
-				Local:       true,
 				DefaultText: "false",
 				Action: func(_ context.Context, _ *cli.Command, _ bool) error {
 					log.SetOutput(os.Stderr)
@@ -106,6 +105,31 @@ func main() {
 				Usage:       "Import blobs from a release",
 				Description: "Fetch a release (file or URL allowed) and import any blobs that aren't present",
 				Action:      cmd.ImportRelease,
+			},
+			{
+				Name:        "copy",
+				Aliases:     []string{"copy-blobs"},
+				Usage:       "Copy blobs into an existing blobstore",
+				Description: "Copy blobs from an old blobstore into the current blobstore",
+				Action:      cmd.CopyBlobs,
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "final",
+						Usage:       "source 'final.yml' file",
+						DefaultText: "<projectDir>/config/final.old",
+					},
+					&cli.StringFlag{
+						Name:        "private",
+						Usage:       "source 'private.yml' file",
+						DefaultText: "<projectDir>/config/private.old",
+					},
+					&cli.BoolFlag{
+						Name:    "force",
+						Aliases: []string{"f"},
+						Usage:   "over-write any existing blobs",
+						Value:   false,
+					},
+				},
 			},
 		},
 	}

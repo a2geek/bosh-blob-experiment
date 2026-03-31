@@ -60,31 +60,9 @@ func MakeLocal(_ context.Context, cmd *cli.Command) error {
 	}
 
 	if cmd.Bool("copy") {
-		blobs, err := oldBlobstore.List()
+		err = blobstore.Copy(oldBlobstore, newBlobstore, false)
 		if err != nil {
 			return err
-		}
-		for _, blob := range blobs {
-			log.Printf("copying blob '%s'", blob)
-
-			tmp, err := os.CreateTemp("", "blob-")
-			if err != nil {
-				return err
-			}
-			defer func() {
-				tmp.Close()
-				os.Remove(tmp.Name())
-			}()
-
-			err = oldBlobstore.Get(blob, tmp)
-			if err != nil {
-				return err
-			}
-
-			err = newBlobstore.Put(tmp, blob)
-			if err != nil {
-				return err
-			}
 		}
 	}
 
