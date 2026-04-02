@@ -82,7 +82,7 @@ func main() {
 				Name:        "mklocal",
 				Aliases:     []string{"make-blobstore-local"},
 				Usage:       "Make this blobstore local",
-				Description: "Convert this blobstore to be a local blobstore and download all blobs",
+				Description: "Convert this blobstore to be a local blobstore and download all blobs.\nRenames any existing 'final.yml' or 'private.yml' with a '*.old' suffix.\nAlso checks and updates or creates '.gitattributes' if needed.",
 				Action:      cmd.MakeLocal,
 				Flags: []cli.Flag{
 					&cli.StringFlag{

@@ -4,9 +4,11 @@ import (
 	"bosh-blob-experiment/blobstore"
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	cli "github.com/urfave/cli/v3"
 	"gopkg.in/yaml.v3"
@@ -41,10 +43,6 @@ func MakeLocal(_ context.Context, cmd *cli.Command) error {
 			},
 		},
 	}
-	newBlobstore, err := blobstore.NewFromManifest(projectDir, newBlobstoreConfig)
-	if err != nil {
-		return err
-	}
 
 	// Make certain the blob directory exists
 	blobDir := filepath.Join(projectDir, blobstorePath)
@@ -60,6 +58,11 @@ func MakeLocal(_ context.Context, cmd *cli.Command) error {
 	}
 
 	if cmd.Bool("copy") {
+		newBlobstore, err := blobstore.NewFromManifest(projectDir, newBlobstoreConfig)
+		if err != nil {
+			return err
+		}
+
 		err = blobstore.Copy(oldBlobstore, newBlobstore, false)
 		if err != nil {
 			return err
@@ -97,5 +100,35 @@ func MakeLocal(_ context.Context, cmd *cli.Command) error {
 	}
 
 	_, err = file.Write(bytes)
+
+	// Update .gitattributes file
+	gitAttributesFile := filepath.Join(projectDir, ".gitattributes")
+	gitAttributes := ""
+
+	_, err = os.Stat(gitAttributesFile)
+	if err == nil {
+		log.Println("reading existing .gitattributes file")
+		b, err := os.ReadFile(gitAttributesFile)
+		if err != nil {
+			return err
+		}
+		gitAttributes = string(b)
+	}
+
+	if !strings.Contains(gitAttributes, blobstorePath) {
+		log.Printf("adding entry to .gitattributes file for '/%s/'", blobstorePath)
+		if gitAttributes != "" && !strings.HasSuffix(gitAttributes, "\n") {
+			gitAttributes += "\n"
+		}
+		gitAttributes += fmt.Sprintf("/%s/** filter=lfs diff=lfs merge=lfs -text\n", blobstorePath)
+
+		err = os.WriteFile(gitAttributesFile, []byte(gitAttributes), os.ModePerm)
+		if err != nil {
+			return err
+		}
+	} else {
+		log.Printf(".gitattributes file already has entry for '%s'", blobstorePath)
+	}
+
 	return err
 }
