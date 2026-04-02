@@ -10,6 +10,7 @@ import (
 
 func CopyBlobs(_ context.Context, cmd *cli.Command) error {
 	projectDir := cmd.String("project")
+	oldProjectDir := ""
 	forceFlag := cmd.Bool("force")
 	finalFile := cmd.String("final")
 	privateFile := cmd.String("private")
@@ -17,6 +18,7 @@ func CopyBlobs(_ context.Context, cmd *cli.Command) error {
 	if finalFile == "" && privateFile == "" {
 		finalFile = filepath.Join(projectDir, "config", "final.old")
 		privateFile = filepath.Join(projectDir, "config", "private.old")
+		oldProjectDir = projectDir
 	}
 
 	currentBlobstore, _, err := blobstore.NewFromConfig(projectDir)
@@ -24,7 +26,7 @@ func CopyBlobs(_ context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	oldBlobstore, _, err := blobstore.NewFromFiles(finalFile, privateFile, false)
+	oldBlobstore, _, err := blobstore.NewFromFiles(oldProjectDir, finalFile, privateFile, false)
 	if err != nil {
 		return err
 	}
