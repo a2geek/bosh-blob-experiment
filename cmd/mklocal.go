@@ -44,16 +44,9 @@ func MakeLocal(_ context.Context, cmd *cli.Command) error {
 		},
 	}
 
-	// Make certain the blob directory exists
-	blobDir := filepath.Join(projectDir, blobstorePath)
-	_, err = os.Stat(blobDir)
-	if errors.Is(err, os.ErrNotExist) {
-		log.Printf("creating project subdirectory '%s' for blobs", blobstorePath)
-		err = os.Mkdir(blobDir, os.ModePerm)
-		if err != nil {
-			return err
-		}
-	} else if err != nil {
+	// Make certain the blob directories exist (/blob/ and /<blobstorePath>/)
+	err = ensureDirectoriesExists(projectDir, "blobs", blobstorePath)
+	if err != nil {
 		return err
 	}
 
@@ -115,20 +108,45 @@ func MakeLocal(_ context.Context, cmd *cli.Command) error {
 		gitAttributes = string(b)
 	}
 
-	if !strings.Contains(gitAttributes, blobstorePath) {
-		log.Printf("adding entry to .gitattributes file for '/%s/'", blobstorePath)
-		if gitAttributes != "" && !strings.HasSuffix(gitAttributes, "\n") {
-			gitAttributes += "\n"
-		}
-		gitAttributes += fmt.Sprintf("/%s/** filter=lfs diff=lfs merge=lfs -text\n", blobstorePath)
-
-		err = os.WriteFile(gitAttributesFile, []byte(gitAttributes), os.ModePerm)
+	updatedGitAttributes := checkGitAttributes(gitAttributes, "blobs", blobstorePath)
+	if gitAttributes != updatedGitAttributes {
+		err = os.WriteFile(gitAttributesFile, []byte(updatedGitAttributes), os.ModePerm)
 		if err != nil {
 			return err
 		}
-	} else {
-		log.Printf(".gitattributes file already has entry for '%s'", blobstorePath)
 	}
 
 	return err
+}
+
+func ensureDirectoriesExists(baseDir string, subdirectories ...string) error {
+	for _, subdir := range subdirectories {
+		fullDir := filepath.Join(baseDir, subdir)
+		_, err := os.Stat(fullDir)
+		if errors.Is(err, os.ErrNotExist) {
+			log.Printf("creating project subdirectory '%s' for blobs", subdir)
+			err = os.Mkdir(fullDir, os.ModePerm)
+			if err != nil {
+				return err
+			}
+		} else if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func checkGitAttributes(gitAttributes string, paths ...string) string {
+	for _, path := range paths {
+		if !strings.Contains(gitAttributes, path) {
+			log.Printf("adding entry to .gitattributes file for '/%s/'", path)
+			if gitAttributes != "" && !strings.HasSuffix(gitAttributes, "\n") {
+				gitAttributes += "\n"
+			}
+			gitAttributes += fmt.Sprintf("/%s/** filter=lfs diff=lfs merge=lfs -text\n", path)
+		} else {
+			log.Printf(".gitattributes file already has entry for '%s'", path)
+		}
+	}
+	return gitAttributes
 }
