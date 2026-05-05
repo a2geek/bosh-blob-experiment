@@ -54,7 +54,15 @@ func (l *localBlobstore) List() ([]string, error) {
 }
 
 func (l *localBlobstore) Put(src io.ReadSeeker, dest string) error {
-	file, err := os.OpenFile(filepath.Join(l.blobstoreDir, dest), os.O_WRONLY|os.O_TRUNC|os.O_CREATE, os.ModePerm)
+	fullPath := filepath.Join(l.blobstoreDir, dest)
+	justdir := filepath.Dir(fullPath)
+
+	err := os.MkdirAll(justdir, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	file, err := os.OpenFile(fullPath, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		return err
 	}

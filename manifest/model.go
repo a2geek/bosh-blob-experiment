@@ -46,6 +46,11 @@ func (m *Model) FindBuildByVersion(version string) *Build {
 	return nil
 }
 
+func (m *Model) FindBlobByName(name string) (*Blob, bool) {
+	blob, found := m.blobs[name]
+	return &blob, found
+}
+
 func (m *Model) ConfigBlobs() map[string]Blob {
 	blobs := map[string]Blob{}
 	maps.Copy(blobs, m.blobs)
